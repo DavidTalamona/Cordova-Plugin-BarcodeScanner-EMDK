@@ -1,6 +1,6 @@
 {
   "name": "ch-codeworx-cordova-plugin-barcodescanner-emdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Barcode scanner for mobile devices which use EMDK",
   "main": "EmdkBarcode.js",
   "cordova": {

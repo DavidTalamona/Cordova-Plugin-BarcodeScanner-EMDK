@@ -26,16 +26,15 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-
-
 public class EmdkBarcode extends CordovaPlugin implements Serializable, EMDKManager.EMDKListener, Scanner.StatusListener, Scanner.DataListener {
 
 	private static final String LOG_TAG = "EmdkBarcode";
 
-	private EMDKManager emdkManager = null;             ///<  If the EMDK is available for scanning, this property will be non-null
-	private Scanner scanner = null;                         ///<  The scanner currently in use
-	private CallbackContext initialisationCallbackContext = null;   ///<  The Cordova callback for our first plugin initialisation
-	private CallbackContext scanCallbackContext = null;     ///<  The Cordova callback context for each scan
+	private EMDKManager emdkManager = null; /// < If the EMDK is available for scanning, this property will be non-null
+	private Scanner scanner = null; /// < The scanner currently in use
+	private CallbackContext initialisationCallbackContext = null; /// < The Cordova callback for our first plugin initialisation
+	private CallbackContext scanCallbackContext = null; /// < The Cordova callback context for each scan
+	private BarcodeManager barcodeManager;
 
 	public EmdkBarcode() {}
 
@@ -49,10 +48,25 @@ public class EmdkBarcode extends CordovaPlugin implements Serializable, EMDKMana
 	public void onDestroy() {
 		Log.i(LOG_TAG, "Cordova onDestroy");
 
+		deInitScanner();
+
 		if (emdkManager != null) {
 			Log.w(LOG_TAG, "Destroy scanner");
 			emdkManager.release(EMDKManager.FEATURE_TYPE.BARCODE);
+			emdkManager = null;
 		}
+	}
+
+	@Override
+	public void onPause(boolean multitasking) {
+		Log.i(LOG_TAG, "onPause");
+		deInitScanner();
+	}
+
+	@Override
+	public void onResume(boolean multitasking) {
+		Log.i(LOG_TAG, "onResume");
+		initScanner();
 	}
 
 	@Override
@@ -69,13 +83,15 @@ public class EmdkBarcode extends CordovaPlugin implements Serializable, EMDKMana
 						initialisationCallbackContext = callbackContext;
 
 						try {
-							EMDKResults results = EMDKManager.getEMDKManager(cordova.getActivity().getApplicationContext(), me);
+							EMDKResults results = EMDKManager
+									.getEMDKManager(cordova.getActivity().getApplicationContext(), me);
 
 							if (results.statusCode == EMDKResults.STATUS_CODE.SUCCESS) {
 								Log.i(LOG_TAG, "EMDK manager has been successfully created");
 								callbackContext.success();
 							} else {
-								Log.w(LOG_TAG, "Some error has occurred creating the EMDK manager.  EMDK functionality will not be available");
+								Log.w(LOG_TAG,
+										"Some error has occurred creating the EMDK manager.  EMDK functionality will not be available");
 								FailureCallback(callbackContext, "Creating the EMDK manager failed");
 							}
 						} catch (NoClassDefFoundError e) {
@@ -90,14 +106,18 @@ public class EmdkBarcode extends CordovaPlugin implements Serializable, EMDKMana
 		else if (action.equalsIgnoreCase("startSoftRead")) {
 			Log.d(LOG_TAG, "Start soft read");
 			cordova.getThreadPool().execute(new Runnable() {
-				public void run() { StartReading("soft", callbackContext); }
+				public void run() {
+					StartReading("soft", callbackContext);
+				}
 			});
 		}
 
 		else if (action.equalsIgnoreCase("startHardRead")) {
 			Log.d(LOG_TAG, "Start hard read");
 			cordova.getThreadPool().execute(new Runnable() {
-				public void run() { StartReading("hard", callbackContext); }
+				public void run() {
+					StartReading("hard", callbackContext);
+				}
 			});
 		}
 
@@ -125,14 +145,17 @@ public class EmdkBarcode extends CordovaPlugin implements Serializable, EMDKMana
 
 	@Override
 	public void onOpened(EMDKManager manager) {
+		emdkManager = manager;
 		Log.i(LOG_TAG, "EMDKManager onOpened");
+		initScanner();
+	}
 
+	private void initScanner() {
 		if (scanner == null || !scanner.isEnabled()) {
-			Log.i(LOG_TAG, "Initializing");
+			Log.i(LOG_TAG, "initScanner");
 
 			// managers
-			emdkManager = manager;
-			BarcodeManager barcodeManager = (BarcodeManager) emdkManager.getInstance(EMDKManager.FEATURE_TYPE.BARCODE);
+			barcodeManager = (BarcodeManager) emdkManager.getInstance(EMDKManager.FEATURE_TYPE.BARCODE);
 
 			// scanner
 			List<ScannerInfo> scannersOnDevice = barcodeManager.getSupportedDevicesInfo();
@@ -168,9 +191,39 @@ public class EmdkBarcode extends CordovaPlugin implements Serializable, EMDKMana
 		}
 	}
 
+	private void deInitScanner() {
+		Log.i(LOG_TAG, "deInitScanner");
+		if (scanner != null) {
+			try {
+				scanner.cancelRead();
+				scanner.disable();
+			} catch (Exception e) {
+				Log.i(LOG_TAG, "Error in deInitScanner cancelRead : " + e.getMessage());
+			}
+
+			try {
+				scanner.removeDataListener(this);
+				scanner.removeStatusListener(this);
+			} catch (Exception e) {
+				Log.i(LOG_TAG, "Error in deInitScanner, removeDataListener: " + e.getMessage());
+			}
+
+			try {
+				scanner.release();
+			} catch (Exception e) {
+				Log.i(LOG_TAG, "Error in deInitScanner release: " + e.getMessage());
+			}
+
+			scanner = null;
+		}
+	}
+
 	// necessary to be compliant with the EMDKListener interface
 	@Override
-	public void onClosed() {}
+	public void onClosed() {
+		Log.e(LOG_TAG, "onClosed()");
+		deInitScanner();
+	}
 
 
 
@@ -180,6 +233,10 @@ public class EmdkBarcode extends CordovaPlugin implements Serializable, EMDKMana
 
 	private void StartReading(String type, CallbackContext callbackContext) {
 		Log.e(LOG_TAG, "StartRead: " + type);
+		if (scanner == null) {
+			initScanner();
+		}
+
 		if (scanner != null) {
 			try {
 				if (scanner.isReadPending()) {

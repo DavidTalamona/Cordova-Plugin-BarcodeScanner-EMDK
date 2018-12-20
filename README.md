@@ -7,8 +7,8 @@
 [![npm licence](http://img.shields.io/npm/l/ch-codeworx-cordova-plugin-barcodescanner-emdk.svg?style=flat-square)](https://npmjs.org/package/ch-codeworx-cordova-plugin-barcodescanner-emdk "View this project on npm")
 
 # EMDK Barcode
-This plugin defines an `emdkBarcode` object which provides an API for interacting with the __2D__ barcode scanner hardware scanner on Zebra devices.  
-The EMDK library itself does support other scanner types like 1D and Camera, but this plugin is for the 2D scanner only! Feel free to change / extend it.  
+This plugin defines an `emdkBarcode` object which provides an API for interacting with the __2D__ barcode scanner hardware scanner on Zebra devices.
+The EMDK library itself does support other scanner types like 1D and Camera, but this plugin is for the 2D scanner only! Feel free to change / extend it.
 The emdkBarcode object is not available until after the `deviceready` event.
 
     document.addEventListener("deviceready", onDeviceReady, false);
@@ -21,9 +21,9 @@ This plugin is based on [https://github.com/darryncampbell/EnterpriseBarcodePoC]
 ## Installation
 
     cordova plugin add https://github.com/DavidTalamona/Cordova-Plugin-BarcodeScanner-EMDK.git
-__Requires Cordova 5.0 or higher otherwise your application will get build errors.__  
+__Requires Cordova 5.0 or higher otherwise your application will get build errors.__
 __When updating from a previous Cordova version it is necessary to re-add this plugin__
-    
+
 ## Supported Platforms
 
 - Android
@@ -81,3 +81,7 @@ Enables the barcode scanner hardware and the associated trigger, __it will start
 Stops the currently active scan.
 
     emdkBarcode.stopReading();
+
+### Updates
+## 0.1.1
+This update implements onPause and onResume CordovaPlugin methods. This allows the scanner to properly de-initialize and then restart when it enters a power-sleep cycle.
